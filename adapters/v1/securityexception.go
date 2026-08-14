@@ -530,7 +530,7 @@ func isExceptionSourcedIgnore(im v1beta1.IgnoredMatch) bool {
 	if r.SourceKind != "" || r.SourceName != "" || r.SourceNamespace != "" || r.Justification != "" || r.ImpactStatement != "" {
 		return true
 	}
-	return r.FixState == ""
+	return false
 }
 
 // IgnoredMatchKeys returns the set of match-identity keys for a manifest's ignored matches.

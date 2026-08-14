@@ -709,11 +709,11 @@ func TestRestoreSuppressedMatches(t *testing.T) {
 			IgnoredMatches: []v1beta1.IgnoredMatch{
 				{
 					Match:              v1beta1.Match{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-A"}}},
-					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-A"}},
+					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-A", SourceKind: "SecurityException"}},
 				},
 				{
 					Match:              v1beta1.Match{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-B"}}},
-					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-B"}},
+					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-B", SourceKind: "SecurityException"}},
 				},
 			},
 		}
@@ -757,7 +757,7 @@ func TestRestoreSuppressedMatches(t *testing.T) {
 			IgnoredMatches: []v1beta1.IgnoredMatch{
 				{
 					Match:              v1beta1.Match{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-A"}}},
-					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-A"}},
+					AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-A", SourceKind: "SecurityException"}},
 				},
 				{
 					Match:              v1beta1.Match{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-NATIVE"}}},
@@ -1118,4 +1118,27 @@ func TestConvertAffectedRecordsProvenance(t *testing.T) {
 	require.Len(t, policies, 1)
 	assert.Equal(t, "WAF mitigation in place, ticket SEC-1234", policies[0].Attributes["actionStatement"])
 	assert.Equal(t, []string{"will_not_fix"}, policies[0].Attributes["response"])
+}
+
+func TestRestoreSuppressedMatches_ExternalVEXFalsePositive(t *testing.T) {
+	// This simulates what happens when Grype processes a VEX file and 
+	// Kubevuln drops the tags during conversion. We are left with a single 
+	// rule that only has the Vulnerability ID.
+	doc := &v1beta1.GrypeDocument{
+		Matches: []v1beta1.Match{
+			{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-KEEP"}}},
+		},
+		IgnoredMatches: []v1beta1.IgnoredMatch{
+			{
+				Match:              v1beta1.Match{Vulnerability: v1beta1.Vulnerability{VulnerabilityMetadata: v1beta1.VulnerabilityMetadata{ID: "CVE-VEX-SUPPRESSED"}}},
+				AppliedIgnoreRules: []v1beta1.IgnoreRule{{Vulnerability: "CVE-VEX-SUPPRESSED"}},
+			},
+		},
+	}
+
+	restored := RestoreSuppressedMatches(doc)
+
+	require.NotNil(t, restored)
+	assert.Len(t, restored.Matches, 1, "VEX-suppressed match should NOT be restored")
+	assert.Len(t, restored.IgnoredMatches, 1, "VEX-suppressed match should stay ignored")
 }
